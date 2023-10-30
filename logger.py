@@ -1,7 +1,8 @@
 import sys
 import serial
 import csv
-from PyQt5.QtWidgets import QApplication, QMainWindow, QComboBox, QPushButton, QTextEdit, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QApplication, QMainWindow, QComboBox, QPushButton, QTextEdit, QVBoxLayout, QWidget, QHBoxLayout, QFileDialog
+
 from serial.tools import list_ports
 
 class DataLoggerApp(QMainWindow):
@@ -9,16 +10,22 @@ class DataLoggerApp(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("Data Logger")
-        self.setGeometry(100, 100, 400, 300)
+        self.setGeometry(100, 100, 600, 400)
 
         self.port_dropdown = QComboBox()
         self.log_button = QPushButton("Log Data")
+        self.save_button = QPushButton("Save Data")
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
 
         layout = QVBoxLayout()
         layout.addWidget(self.port_dropdown)
-        layout.addWidget(self.log_button)
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.log_button)
+        button_layout.addWidget(self.save_button)
+
+        layout.addLayout(button_layout)
         layout.addWidget(self.log_text)
 
         container = QWidget()
@@ -27,11 +34,13 @@ class DataLoggerApp(QMainWindow):
 
         self.init_ui()
         self.init_serial()
+        self.logged_data = []
 
     def init_ui(self):
         self.log_button.clicked.connect(self.start_logging)
+        self.save_button.clicked.connect(self.save_data)
         self.update_port_list()
-        
+
     def init_serial(self):
         self.serial = serial.Serial()
 
@@ -52,16 +61,26 @@ class DataLoggerApp(QMainWindow):
             return
 
         self.log_text.append("Logging data from " + com_port)
-        with open('sensor_data.csv', 'w', newline='') as csv_file:
-            csv_writer = csv.writer(csv_file)
-            csv_writer.writerow(["Distance", "Command"])
 
-            while self.serial.is_open:
-                line = self.serial.readline().decode().strip()
-                if ',' in line:
-                    distance, command = line.split(',')
+        while self.serial.is_open:
+            line = self.serial.readline().decode().strip()
+            if ',' in line:
+                distance, command = line.split(',')
+                data_str = f"Distance: {distance} cm, Command: {command}"
+                self.log_text.append(data_str)
+                self.logged_data.append(data_str)
+
+    def save_data(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        file_name, _ = QFileDialog.getSaveFileName(self, "Save Data", "", "CSV Files (*.csv)", options=options)
+        if file_name:
+            with open(file_name, 'w', newline='') as csv_file:
+                csv_writer = csv.writer(csv_file)
+                csv_writer.writerow(["Distance", "Command"])
+                for data in self.logged_data:
+                    distance, command = data.split(',')[0].split(': ')[1], data.split(',')[1].split(': ')[1]
                     csv_writer.writerow([distance, command])
-                    self.log_text.append(f"Distance: {distance} cm, Command: {command}")
 
     def closeEvent(self, event):
         if self.serial.is_open:
