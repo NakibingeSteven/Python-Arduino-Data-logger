@@ -2,6 +2,7 @@ import sys
 import serial
 import csv
 from PyQt5.QtWidgets import QApplication, QMainWindow, QComboBox, QPushButton, QTextEdit, QVBoxLayout, QWidget, QHBoxLayout, QFileDialog
+from PyQt5.QtCore import QTimer
 
 from serial.tools import list_ports
 
@@ -61,14 +62,17 @@ class DataLoggerApp(QMainWindow):
             return
 
         self.log_text.append("Logging data from " + com_port)
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_log)
+        self.timer.start(1000)  # Update every 1 second
 
-        while self.serial.is_open:
-            line = self.serial.readline().decode().strip()
-            if ',' in line:
-                distance, command = line.split(',')
-                data_str = f"Distance: {distance} cm, Command: {command}"
-                self.log_text.append(data_str)
-                self.logged_data.append(data_str)
+    def update_log(self):
+        line = self.serial.readline().decode().strip()
+        if ',' in line:
+            distance, command = line.split(',')
+            data_str = f"Distance: {distance} cm, Command: {command}"
+            self.log_text.append(data_str)
+            self.logged_data.append(data_str)
 
     def save_data(self):
         options = QFileDialog.Options()
@@ -85,6 +89,8 @@ class DataLoggerApp(QMainWindow):
     def closeEvent(self, event):
         if self.serial.is_open:
             self.serial.close()
+        if hasattr(self, 'timer'):
+            self.timer.stop()
         event.accept()
 
 if __name__ == '__main__':
