@@ -6,7 +6,7 @@ from serial.tools import list_ports
 
 class DataLoggerApp(QMainWindow):
     def __init__(self):
-        super().__init()
+        super().__init__()
 
         self.setWindowTitle("Data Logger")
         self.setGeometry(100, 100, 400, 300)
